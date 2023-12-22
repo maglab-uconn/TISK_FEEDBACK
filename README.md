@@ -1,6 +1,10 @@
-# WORKFLOW FOR PAPER_TITLE_HERE
+# WORKFLOW FOR TISK WITH FEEDBACK
 
-In this document, we walk through how to set up TISK and TRACE simulations presented in our paper, "PAPER_TITLE_HERE".
+#### Jim Magnuson, Heejo You, & Thomas Hannagan
+
+In this document, we walk through how to set up TISK and TRACE simulations presented in our paper, "Lexical feedback in the Time-Invariant String Kernel (TISK) model of spoken word recognition".
+
+Most code in this repository was developed by Heejo You. Thomas Hannagan was the original creator of TISK, along with Jonathan Grainger and Jim Magnuson, and contributed important advice and ideas for this project. Magnuson did the TRACE analyses and model comparisons, and wrote the first draft of the paper.
 
 The TISK repo is meant to include all results and graphs. By running all of the simulation scripts and analysis scripts below, you can replicate our entire workflow and figures from the manuscript. However, proceed with caution. We have noted that some scripts take several minutes or even several **hours** to run.
 
