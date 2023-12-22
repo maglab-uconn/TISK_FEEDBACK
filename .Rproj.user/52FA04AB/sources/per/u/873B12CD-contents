@@ -1,0 +1,21 @@
+# Create the ggplot
+model_Plot <- ggplot(data=melt_Ganong_Result.Subset, aes(x=Continuum_Step, y=value)) +
+  geom_text(aes(label=custom_shapes[Word_Phoneme], color=Word_Phoneme, x = Continuum_Step + runif(length(Continuum_Step), -0.1, 0.1)), size = 7, vjust = -0.5) +
+  geom_line(aes(linetype=Word_Phoneme, color=Word_Phoneme), size = 2) +
+  facet_grid(. ~ Model) +
+  ylim(0, 1.0) +
+  labs(linetype ="", shape = "", color = "") +
+  labs(x = "Continuum step", y = "Activation", title="") +
+  theme_bw() +
+  theme(text = element_text(size=48),
+        panel.background = element_blank(), 
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.background = element_blank(),
+        legend.position = "bottom"
+  ) +
+  scale_linetype_manual(values = custom_linetypes) +
+  scale_color_manual(values = custom_colors)
+
+# Save the plot
+ggsave(paste(work_Dir, "Graphs/Ganong_Effect/Ganong_Effect.Model.png", sep=""), plot=model_Plot, width = 30, height = 20, dpi=300, units = "cm")

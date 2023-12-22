@@ -1,0 +1,10 @@
+./ANALYSIS/plot_competitor_types.2023.R -f Results/Basic_Data/No_Feedback_Category_Activation_Data.txt -y "Activation" -t "TISK (no feedback, optimized)" -l "-0.01" -u .5 -d 3 -e "st^did,triti"
+./ANALYSIS/plot_competitor_types.2023.R -f Results/Basic_Data/Feedback_Category_Activation_Data.txt -y "Activation" -t "TISKfb (with feedback)" -l "-0.01" -u .5 -d 3 -e "partli,prab^bli,start^l,st^did,triti,tr^sti"
+./ANALYSIS/plot_competitor_types.2023.R -f Results/Basic_Data/Original_Category_Activation_Data.txt -y "Activation" -t "TISK (no feedback, original)" -l "-0.01" -u .5 -d 3 -e "st^did,triti"
+
+./ANALYSIS/plot_competitor_types.2023.R -f TRACEDATA/sil_slex_wp0.3_gsd0_COMPTIME_lk_20_act_0.45_rp_0.6_diff_0.05_COMPTIME.txt -y "Activation" -t "TRACE" -l "-0.21" -u .69 -d 3 -a 1
+
+mv Results/Basic_Data/No_Feedback_Category_Activation_Data.txt_timePlot.png Graphs/TimeCourse/fig05d-No_Feedback_Category_Activation_Data.txt_timePlot.png
+mv Results/Basic_Data/Feedback_Category_Activation_Data.txt_timePlot.png Graphs/TimeCourse/fig05b-Feedback_Category_Activation_Data.txt_timePlot.png
+mv Results/Basic_Data/Original_Category_Activation_Data.txt_timePlot.png Graphs/TimeCourse/fig05c-Original_Category_Activation_Data.txt_timePlot.png 
+mv TRACEDATA/sil_slex_wp0.3_gsd0_COMPTIME_lk_20_act_0.45_rp_0.6_diff_0.05_COMPTIME.txt_timePlot.png Graphs/TimeCourse/fig05a-trace.png

@@ -1,0 +1,140 @@
+#!/usr/bin/env Rscript
+#setwd("/Users/jmagnuson/Dropbox/MAGNUSON/MODELS/TRACE_FEEDBACK_PRJ_2015/recovering_makeable_trace_2016.10.22/ctrace-maglab-gk.wrk/SCRIPTS")
+library(optparse)
+
+option_list = list(
+  make_option(c("-f", "--file"), action="store", default=NA, type='character',
+              help="data file"),
+  make_option(c("-a", "--activation"), action="store", default=0.3, type='double',
+              help="activation threshold"),
+  make_option(c("-r", "--response"), action="store", default=0.5, type='double',
+              help="Luce response probability threshold"),
+  make_option(c("-d", "--diff"), action="store", default=0.05, type='double',
+              help="differential value threshold"), 
+  make_option(c("-t", "--time"), action="store", default=10, type='integer',
+              help="time-based threshold")
+)
+
+opt = parse_args(OptionParser(option_list=option_list))
+
+cat(paste("data file",opt$f,", activation",opt$a, ",response",opt$r, ", differential", opt$d, ",time", opt$t,"\n\n"))
+
+
+args = commandArgs(trailingOnly=TRUE)
+downsample = 1
+# test if there is at least one argument: if not, return an error
+if (length(args)==0) {
+  stop("At least one argument must be supplied (input file).\n", call.=FALSE)
+} 
+#source("~/Dropbox/MAGNUSON/MODELS/TRACE_FEEDBACK_PRJ_2015/trace_handling_functions.2013.12.01.R")
+source("./ANALYSIS/trace_handling_functions.2013.12.01.R")
+library(reshape2)
+library(data.table)
+library(ggplot2)
+library(plyr) 
+library(foreach) 
+library(gridExtra)
+
+#source("~/Dropbox/MAGNUSON/MODELS/TRACE_FEEDBACK_PRJ_2015/trace_handling_functions.2013.12.01.R")
+#shapeValues  = c(14, 15, 16, 17, 18, 19, 14,15, 16, 17)
+shapeValues  = c(14, 15, 16, 17, 18, 19, 14,15, 16, 17,
+                 14, 15, 16, 17, 18, 19, 14,15, 16, 17,
+                 14, 15, 16, 17, 18, 19, 14,15, 16, 17)
+otm <- proc.time()
+
+#actThresh = 0.45;
+#rpThresh = 0.6; # 0.9 in FP98                                                                                                                                                                                                                                            
+actThresh = opt$a
+rpThresh = opt$r
+
+# for TISK
+#actThresh = 0.3;
+#rpThresh = 0.46; # 0.9 in FP98                                                                                                                                                                                                                                            
+
+relSize = 1
+
+foreach(atc=opt$f)%do%{
+  plotList <- list()
+  plotList.rp <- list()
+  
+  ptm <- proc.time()
+  adat <- as.data.frame(fread(atc))
+  names(adat)=c("Target", "Form", "peakAcc", "peakCyc", 
+                "maxAcc", "maxCyc", "absAcc", "absCyc", "diffAcc", "diffCyc", "CdiffAcc", "CdiffCyc",
+                "Cycle", "Item", "Rank", "Value");
+  # now could create two data frames: one with the "Value"s and one with acc and RT
+  accCyc.dat = unique(adat[,c(1,2,3,4,5,6,7,8,9,10,11,12)])
+  tc.dat = adat[,c(1,2,13,14,15,16)]
+  tc.dat$cRank = ""
+  tc.dat[tc.dat$Rank < 10,]$cRank = "0"
+  tc.dat$cRank = paste0(tc.dat$cRank,tc.dat$Rank)
+  
+  #tc.dat[tc.dat$Rank<10,]$cRank = paste0("0",)
+  tc.dat$rItem = paste(tc.dat$cRank,tc.dat$Item,sep=".")
+  
+  foreach(afrm=unique(tc.dat$Form))%do%{
+    absThresh = actThresh
+    if(afrm == "Probability"){
+      absThresh = rpThresh
+    }
+    foreach(awrd=unique(tc.dat$Target))%do%{
+      this.accCyc = accCyc.dat[(accCyc.dat$Form == afrm & accCyc.dat$Target == awrd),]
+      this.tc = subset(tc.dat,Target==awrd & Form == afrm)
+      plotTitle = paste(awrd,afrm,
+                        paste("PEAK",this.accCyc$peakAcc,this.accCyc$peakCyc,sep=":"),
+                        paste("MAX",this.accCyc$maxAcc,this.accCyc$maxCyc,sep=":"),
+                        paste("ABS",this.accCyc$absAcc,this.accCyc$absCyc,sep=":"), 
+                        paste("DIF",this.accCyc$diffAcc,this.accCyc$diffCyc,sep=":"), 
+                        paste("cDIF",this.accCyc$CdiffAcc,this.accCyc$CdiffCyc,sep=":")
+                        )
+      #reorder(this.tc$Item, this.tc$Rank)
+      aggplot <- ggplot(this.tc,aes(Cycle,Value,color=rItem, shape=rItem)) + 
+        geom_line(aes(label=rItem)) + 
+        xlab("Time (TRACE processing cycles)") + ylab(afrm) +
+        #    scale_x_continuous(limits = c(-5, 120)) + #, breaks=c(0,10,20,30)) +
+        scale_y_continuous(limits = c(-0.25, 1)) + #scale_shape_discrete(solid=T) + #geom_point(shape = a)
+        geom_point(size=rel(2)) +
+        #  scale_fill_discrete(name="Noise level") +
+        scale_shape_manual(values=shapeValues) +                  # Change shapes
+        #  scale_linetype_manual(values=c(rep("solid",17))) + 
+        theme(axis.text.x = element_text(size=rel(relSize), face="plain"),
+              axis.text.y = element_text(size=rel(relSize), face="plain"),
+              axis.title.x = element_text(size=rel(relSize), face="bold"),
+              axis.title.y = element_text(size=rel(relSize), face="bold"),
+              title=element_text(size=rel(relSize)),
+              legend.text = element_text(size = rel(relSize)), 
+              legend.title = element_blank(),
+              #         legend.position = c(.1,.7),
+              strip.text.x = element_text(size=rel(1.5)),
+              legend.background = element_rect(colour = "black"),
+              plot.title = element_text(size = rel(relSize)) ) +
+        geom_vline(xintercept=this.accCyc$peakCyc,colour="red") + 
+        geom_vline(xintercept=this.accCyc$maxCyc,colour="blue") + 
+        geom_vline(xintercept=this.accCyc$absCyc,colour="black") + 
+        geom_vline(xintercept=this.accCyc$diffCyc,colour="orange") + 
+        geom_vline(xintercept=this.accCyc$CdiffCyc,colour="green") + 
+        geom_hline(yintercept=absThresh,colour="black") + 
+        ggtitle(plotTitle)
+      if(afrm == "Activation"){
+        plotList[[length(plotList) + 1]] <- aggplot
+      } else {
+        plotList.rp[[length(plotList.rp) + 1]] <- aggplot
+      }
+      print(paste("-->", awrd, afrm))
+      print((proc.time() - ptm))
+    }
+  }
+  
+  #filePre = paste0(paste(alex,paste0("wp",awp),paste0("gsd",agsd),sep="_"))
+  pagePlotter(plotList,wid=22,hei=17,filename=paste0(atc,"_activation.pdf"))
+  pagePlotter(plotList.rp,wid=22,hei=17,filename=paste0(atc,"_RP.pdf"))
+#  write.table(row.names=FALSE, x=winners,file=paste0(filePre,"_trace_activation_winners.txt"),quote=F, sep="\t")
+#  write.table(row.names=FALSE, x=winners.l,file=paste0(filePre,"_trace_rp_winners.txt"),quote=F, sep="\t")
+}
+print("Whole shebang:")
+print(paste((proc.time() - otm)))
+
+
+
+
+
