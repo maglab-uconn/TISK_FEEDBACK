@@ -1,8 +1,6 @@
 # WORKFLOW FOR PAPER: Lexical feedback in the Time-Invariant String Kernel (TISK) model of spoken word recognition
 
-In this document, we walk through how to set up TISK and TRACE simulations presented in our paper, "Lexical feedback in the Time-Invariant String Kernel (TISK) model of spoken
-
-word recognition".
+In this document, we walk through how to set up TISK and TRACE simulations presented in our paper, "Lexical feedback in the Time-Invariant String Kernel (TISK) model of spoken word recognition".
 
 The TISK repo is meant to include all results and graphs. By running all of the simulation scripts and analysis scripts below, you can replicate our entire workflow and figures from the manuscript. However, proceed with caution. We have noted that some scripts take several minutes or even several **hours** to run.
 
