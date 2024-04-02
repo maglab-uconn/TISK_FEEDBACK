@@ -1,3 +1,8 @@
+
+library(readr)
+library(ggplot2)
+library(tidyverse)
+
 grid_arrange_shared_legend <- function(..., plotlist=NULL, ncol = length(list(...)) + length(plotlist), nrow = 1, position = c("bottom", "right", "none"))
 {
   library(ggplot2)
@@ -52,9 +57,6 @@ if (substr(work_Dir, nchar(work_Dir), nchar(work_Dir)) != "/") { work_Dir <- pas
 dir.create(file.path(work_Dir, "Graphs"), showWarnings = FALSE)
 dir.create(file.path(paste(work_Dir, "Graphs", sep=""), "Retroactive_Effect"), showWarnings = FALSE)
 
-library(readr)
-library(ggplot2)
-library(reshape2)
 
 feedback_Retroactive_Effect_Result <- read_delim(paste(work_Dir, "Results/Retroactive_Effect/Feedback.Retroactive_Effect.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
 no_Feedback_Retroactive_Effect_Result <- read_delim(paste(work_Dir, "Results/Retroactive_Effect/No_Feedback.Retroactive_Effect.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
@@ -62,8 +64,14 @@ no_Feedback_Retroactive_Effect_Result <- read_delim(paste(work_Dir, "Results/Ret
 feedback_Retroactive_Effect_Result <- feedback_Retroactive_Effect_Result[-2:-5]
 no_Feedback_Retroactive_Effect_Result <- no_Feedback_Retroactive_Effect_Result[-2:-5]
 
-melt_Feedback_Retroactive_Effect <- melt(feedback_Retroactive_Effect_Result, id="Cycle")
-melt_No_Feedback_Retroactive_Effect <- melt(no_Feedback_Retroactive_Effect_Result, id="Cycle")
+# melt_Feedback_Retroactive_Effect <- melt(feedback_Retroactive_Effect_Result, id="Cycle")
+# melt_No_Feedback_Retroactive_Effect <- melt(no_Feedback_Retroactive_Effect_Result, id="Cycle")
+# Using pivot_longer instead of melt
+melt_Feedback_Retroactive_Effect <- feedback_Retroactive_Effect_Result %>%
+  pivot_longer(cols = -Cycle, names_to = "variable", values_to = "value")
+
+melt_No_Feedback_Retroactive_Effect <- no_Feedback_Retroactive_Effect_Result %>%
+  pivot_longer(cols = -Cycle, names_to = "variable", values_to = "value")
 
 no_Feedback_Graph <- ggplot(data=melt_No_Feedback_Retroactive_Effect, aes(x=Cycle, y=value, shape=variable, colour=variable)) +
   geom_line(data=melt_No_Feedback_Retroactive_Effect, aes(linetype=variable)) +
@@ -102,7 +110,7 @@ feedback_Graph <- ggplot(data=melt_Feedback_Retroactive_Effect, aes(x=Cycle, y=v
         plot.background = element_blank(),
         legend.key.height=unit(2,"line"))
 
-png(paste(work_Dir, "Graphs/Retroactive_Effect/fig09_Retroactive_Effect.png", sep=""), width = 33, height = 15, res =300, units = "cm")
+png(paste(work_Dir, "Graphs/Retroactive_Effect/fig08_Retroactive_Effect.png", sep=""), width = 33, height = 15, res =300, units = "cm")
 grid_arrange_shared_legend(no_Feedback_Graph, feedback_Graph, ncol = 2, nrow = 1, position="right")
 dev.off()
 

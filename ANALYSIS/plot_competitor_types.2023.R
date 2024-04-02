@@ -26,6 +26,11 @@ option_list = list(
               help="means you have trace data that is already aggregated")
 )
 
+# for setting breaks for figures and keeping them all multiples of 0.1
+find_nearest_tenth <- function(number) {
+  ceiling(number * 10) / 10
+}
+
 opt = parse_args(OptionParser(option_list=option_list))
 ylabel = opt$y
 xlabel = opt$x
@@ -40,6 +45,7 @@ if(opt$a){ tracemode = 1}
 
 
 outfile = paste0(infile, "_timePlot", ".png")
+outfile_dat = paste0(infile, "_timePlot", ".csv")
 
 cat(paste("data file", opt$f,", plot title", opt$t, ",xlabel",opt$x, ", ylabel", opt$y, "\n\n"))
 
@@ -114,6 +120,7 @@ colorValues = c("black", # target
                 "red", # cohort
                 "blue", # rhyme
                 "grey") # unrelated
+#(breaks = seq(from = <minimum_value>, to = <maximum_value>, by = 0.1))
 
 if(!is.na(upperbound)){
   theplot = ggplot(filter(grouped_data, Time %% downsample == 0), aes(x=Time, y=Activation, colour=Category, shape=Category)) +
@@ -122,7 +129,9 @@ if(!is.na(upperbound)){
     geom_ribbon(aes(ymin = Activation - SEM, ymax = Activation + SEM), alpha = 0.2, colour=NA) +
     scale_shape_manual(values=shapeValues) +
     scale_colour_manual(values=colorValues) +
-    scale_y_continuous(limits=c(lowerbound, upperbound)) + 
+    scale_y_continuous(limits=c(lowerbound, upperbound), 
+                       breaks = seq(from=find_nearest_tenth(lowerbound),
+                                    to=find_nearest_tenth(upperbound-0.1), by=0.1)) + 
     theme(panel.background = element_rect(colour="black", fill="white"),
         axis.text.x = element_text(size=20, face="plain", colour="black"),
         axis.text.y = element_text(size=20, face="plain", colour="black"),
@@ -163,3 +172,14 @@ if(!is.na(upperbound)){
 }
 #theplot
 ggsave(outfile, width=6,height=7.5)
+# Save the grouped_data as a CSV file
+# Assuming 'grouped_data' is your final data frame
+
+# Convert from long to wide format
+wide_data <- pivot_wider(grouped_data, names_from = Category, values_from = Activation)
+
+# Drop the SEM column
+wide_data <- select(wide_data, -SEM)
+
+# Save the wide format data as a CSV file
+write.csv(wide_data, file = outfile_dat, row.names = FALSE)

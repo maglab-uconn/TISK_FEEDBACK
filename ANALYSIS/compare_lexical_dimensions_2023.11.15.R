@@ -157,7 +157,7 @@ final_plot <- do.call(grid.arrange, c(plot_rows, nrow=length(rt_columns)))
 print(final_plot)
 
 #ggsave("comp_model_lex_dims.pdf", plot=final_plot, width=25, height=15)
-ggsave("Graphs/LexDims/fig07-comp_model_lex_dims.png", plot=final_plot, width=25, height=15)
+ggsave("Graphs/LexDims/fig06-comp_model_lex_dims.png", plot=final_plot, width=25, height=15)
 
 
 # pdf("compare_model_lex_dims.pdf",width=15,height=18)
@@ -271,7 +271,7 @@ tisk_trace_plot
 #multiplot(tiskfb_tisk_plot, tiskfb_trace_plot, tiskor_trace_plot, cols=3)
 #dev.off()
 
-png("Graphs/LexDims/fig06-compare_model_rts_rev.png", width=4500, height=1500, res=300)
+png("Graphs/LexDims/fig05-compare_model_rts_rev.png", width=4500, height=1500, res=300)
 multiplot(tiskfb_tisk_plot, tiskfb_trace_plot, tiskor_trace_plot, cols=3)
 dev.off()
 

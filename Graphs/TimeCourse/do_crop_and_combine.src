@@ -1,0 +1,5 @@
+convert fig04a-trace.png -gravity South -chop 0x100 fig04a-trace-cropped.png
+convert fig04b-Feedback_Category_Activation_Data.txt_timePlot.png -crop +100 -crop -0-100 fig04b-Feedback_Category_Activation_Data.txt_timePlot_cropped.png
+convert fig04d-No_Feedback_Category_Activation_Data.txt_timePlot.png -crop +100 fig04d-No_Feedback_Category_Activation_Data.txt_timePlot_cropped.png
+
+montage -density 300 -geometry +0+0 fig04a-trace-cropped.png fig04b-Feedback_Category_Activation_Data.txt_timePlot_cropped.png fig04c-Original_Category_Activation_Data.txt_timePlot.png fig04d-No_Feedback_Category_Activation_Data.txt_timePlot_cropped.png fig04-timecourse.png

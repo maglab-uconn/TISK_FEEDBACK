@@ -90,6 +90,7 @@ class TISK_Model:
             self.parameter_Dict["nPhone_Threshold"] = (self.parameter_Dict["iStep"] * (self.parameter_Dict["time_Slots"] - 1) + 1) / (self.parameter_Dict["iStep"] * self.parameter_Dict["time_Slots"])
         else:
             self.parameter_Dict["nPhone_Threshold"] = nPhone_Threshold
+        #print(f'INIT: nPhone_Threshold = {nPhone_Threshold}')
 
         self.Decay_Parameter_Assign(0.001, 0.001, 0.001, 0.01)
         self.Weight_Parameter_Assign(1.0, 0.1, 0.05, 0.01, -0.005)
@@ -245,8 +246,11 @@ class TISK_Model:
 
         for slot_Index in range(len(inserted_Phoneme_List)):
             if slot_Index in activation_Ratio_Dict.keys():
+                # print(f'\t\t###### Pattern_Generate: Found slot_Index {slot_Index}')
                 for phoneme_Index in range(len(inserted_Phoneme_List[slot_Index])):
-                    pattern[0, slot_Index * self.phoneme_Amount + self.phoneme_List.index(inserted_Phoneme_List[slot_Index][phoneme_Index])] = activation_Ratio_Dict[slot_Index][phoneme_Index]
+                    # print(f'\t\t\t###### ---> For slot_Index {slot_Index} doing {phoneme_Index} which is {activation_Ratio_Dict[slot_Index][phoneme_Index]}')
+                    myx = pattern[0, slot_Index * self.phoneme_Amount + self.phoneme_List.index(inserted_Phoneme_List[slot_Index][phoneme_Index])] = activation_Ratio_Dict[slot_Index][phoneme_Index]
+                    # print(f'MYX: {myx}')
             else:
                 for phoneme in inserted_Phoneme_List[slot_Index]:
                     pattern[0, slot_Index * self.phoneme_Amount + self.phoneme_List.index(phoneme)] = 1 / float(len(inserted_Phoneme_List[slot_Index]))
@@ -547,7 +551,7 @@ class TISK_Model:
 
         return np.nan
 
-    def Run_List(self, pronunciation_List, absolute_Acc_Criteria=0.75, relative_Acc_Criteria=0.05, time_Acc_Criteria=10, output_File_Name=None, raw_Data=False, categorize=False, reaction_Time=False, batch_Size=100, noise=(0, 0)):
+    def Run_List(self, pronunciation_List, absolute_Acc_Criteria=0.75, relative_Acc_Criteria=0.05, time_Acc_Criteria=10, output_File_Name=None, raw_Data=False, categorize=False, reaction_Time=False, batch_Size=100, noise=(0, 0),wordstring="ERR", dump=False):
         """
         Export the raw data and categorized result about all pronunciations of inserted list.
 
@@ -614,6 +618,12 @@ class TISK_Model:
                 rt_Relative_Threshold_List.append(self.RT_Relative_Threshold(pronunciation, word_Activation_Array_List[-1], relative_Acc_Criteria))
                 rt_Time_Dependent_List.append(self.RT_Time_Dependent(pronunciation, word_Activation_Array_List[-1], time_criterion = time_Acc_Criteria, diff_criterion=relative_Acc_Criteria))
 
+                rt_td = self.RT_Time_Dependent(pronunciation, word_Activation_Array_List[-1], time_criterion = time_Acc_Criteria, diff_criterion=relative_Acc_Criteria)
+                
+                if dump:
+                    print(f'{wordstring},{pronunciation},{noise[0]},{noise[1]},{rt_td}')
+
+                
         #print("Simulation time: " + str(round(np.sum(spent_Time_List), 3)) + "s")
         #print("Simulation time per one word: " + str(round(np.sum(spent_Time_List) / len(pronunciation_List) , 3)) + "s")
 
@@ -723,6 +733,8 @@ class TISK_Model:
         else:
             result_List.append(np.nanmean(rt_Time_Dependent_List))
         result_List.append(np.count_nonzero(~np.isnan(rt_Time_Dependent_List)) / len(pronunciation_List))
+
+        #print(f'result_List: {result_List}')
 
         return result_List
 

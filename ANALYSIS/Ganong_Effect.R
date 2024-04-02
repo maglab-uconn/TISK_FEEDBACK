@@ -1,141 +1,152 @@
-work_Dir <- "."  #Insert the TISK dir
-if (substr(work_Dir, nchar(work_Dir), nchar(work_Dir)) != "/") { work_Dir <- paste(work_Dir, "/", sep="") }
-
-dir.create(file.path(work_Dir, "Graphs"), showWarnings = FALSE)
-dir.create(file.path(paste(work_Dir, "Graphs", sep=""), "Ganong_Effect"), showWarnings = FALSE)
-
-library(readr)
+library(tidyverse)
+library(purrr)
 library(ggplot2)
-library(reshape2)
+library(cowplot)
 
-feedback_Ganong_Result <- read_delim(paste(work_Dir, "Results/Ganong_Effect/Feedback.Ganong_effect.Raw.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
-no_Feedback_Ganong_Result <- read_delim(paste(work_Dir, "Results/Ganong_Effect/No_Feedback.Ganong_effect.Raw.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
-feedback_Ganong_Result$Model <- "Feedback"
-no_Feedback_Ganong_Result$Model <- "No_Feedback"
-ganong_Result <- rbind(feedback_Ganong_Result,no_Feedback_Ganong_Result)
+# Define the directory where the files are located
+data_dir <- "Results/Ganong_Effect"
 
-
-melt_Ganong_Result <- melt(ganong_Result, id=c("Model", "Continuum_Step"))
-split_Variable <- do.call(rbind, strsplit(as.character(melt_Ganong_Result$variable), "_"))
-colnames(split_Variable) <- c("Word","Phoneme")
-melt_Ganong_Result <- cbind(melt_Ganong_Result, split_Variable)
-melt_Ganong_Result$Model <- factor(melt_Ganong_Result$Model, levels = c("No_Feedback", "Feedback"), labels = c("No_Feedback", "Feedback"))
-
-#Word
-word_Plot <- ggplot(data=melt_Ganong_Result, aes(x=Continuum_Step, y=value, shape=Phoneme, color=Phoneme)) +
-  geom_point(size = 7) +
-  geom_line(aes(linetype=Phoneme), size = 2) +
-  facet_grid(Model ~ Word) +
-  ylim(0, 1.0) +
-  labs(linetype ="", shape = "", color = "") +
-  labs(x = "Continuum step", y = "Activation", title="") +
-  theme_bw() +
-  theme(text = element_text(size=48),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),  #remove major-grid labels
-        panel.grid.minor = element_blank(),  #remove minor-grid labels
-        plot.background = element_blank(),
-        legend.position = "bottom"
-        )
-
-#ggsave(paste(work_Dir, "Graphs/Ganong_Effect/Ganong_Effect.Word.png", sep=""), plot=word_Plot, width = 45, height = 32, dpi=300, units = "cm")
-
-
-#Model
-melt_Ganong_Result.Subset <- subset(melt_Ganong_Result, melt_Ganong_Result$Word != "Single")
-model_Plot <- ggplot(data=melt_Ganong_Result.Subset, aes(x=Continuum_Step, y=value, shape=Phoneme, color=Phoneme)) +
-  geom_point(size = 7) +
-  geom_line(aes(linetype=Word), size = 2) +
-  facet_grid(. ~ Model) +
-  ylim(0, 1.0) +
-  labs(linetype ="", shape = "", color = "") +
-  labs(x = "Continuum step", y = "Activation", title="") +
-  theme_bw() +
-  theme(text = element_text(size=48),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),  #remove major-grid labels
-        panel.grid.minor = element_blank(),  #remove minor-grid labels
-        plot.background = element_blank(),
-        legend.position = "bottom"
-        )
-
-#ggsave(paste(work_Dir, "Graphs/Ganong_Effect/Ganong_Effect.Model.png", sep=""), plot=model_Plot, width = 30, height = 20, dpi=300, units = "cm")
-
-
-
-# Create a new column that combines the Word and Phoneme columns
-melt_Ganong_Result.Subset$Word_Phoneme <- paste(melt_Ganong_Result.Subset$Phoneme, melt_Ganong_Result.Subset$Word, sep=" | ")
-
-# Fix the names
-library(dplyr)
-
-melt_Ganong_Result.Subset <- melt_Ganong_Result.Subset %>%
-  mutate(
-    Word_Phoneme = case_when(
-      Word_Phoneme == "s | bus" ~ "s | b^∫-b^s",
-      Word_Phoneme == "S | bus" ~ "∫ | b^∫-b^s",
-      Word_Phoneme == "s | rush" ~ "s | r^∫-r^s",
-      Word_Phoneme == "S | rush" ~ "∫ | r^∫-r^s",
-      TRUE ~ Word_Phoneme  # This line keeps all other values the same
-    )
+parse_file_info <- function(filename) {
+  # Extracts the word_length part (e.g., p3, p4)
+  word_length_part <- str_extract(filename, "p[3-9]")
+  # Extracts the model type (feedback or nofeedback)
+  model_type_part <- str_extract(filename, "feedback|nofeedback")
+  
+  # Extract the numeric position just before ".Raw.txt"
+  position <- as.integer(str_extract(filename, "(?<=_)[0-9]+(?=\\.Raw\\.txt$)"))
+  
+  # Simplify model type naming
+  model_type <- case_when(
+    model_type_part == "feedback" ~ "Feedback",
+    model_type_part == "nofeedback" ~ "No Feedback",
+    TRUE ~ "Unknown"
   )
+  
+  list(word_length = word_length_part, model_type = model_type, position = position)
+}
 
-summary(melt_Ganong_Result.Subset)
-unique(melt_Ganong_Result.Subset$Word_Phoneme)
+process_files <- function(data_dir) {
+  # Initially list all files in the directory that end with "Raw.txt"
+  all_files <- list.files(data_dir, pattern = "Raw\\.txt$", full.names = TRUE)
+  
+  # Filter out files containing 'original' in their names
+  files <- all_files[!grepl("original", all_files)]
+  
+  # Continue with parsing file names and reading files...
+  file_info <- map(files, ~parse_file_info(.x))
+  
+  df_list <- map2(files, file_info, ~{
+    # Read the file, skipping the header and not showing column type messages
+    df <- read_delim(.x, "\t", escape_double = FALSE, trim_ws = TRUE, col_names = FALSE, skip = 1, 
+                     show_col_types = FALSE) %>%
+      set_names(c("Step", "Word", "Nonword"))
+    
+    # Add metadata columns based on the updated structure
+    mutate(df, word_length = .y$word_length, model_type = .y$model_type, position = .y$position)
+  }) %>% bind_rows()
+  
+  # Calculate mean, standard deviation (sd), and standard error (se) for Word and Nonword
+  df_summary <- df_list %>%
+    group_by(word_length, position, Step, model_type) %>%
+    summarise(
+      Word_mean = mean(Word, na.rm = TRUE),
+      Word_sd = sd(Word, na.rm = TRUE),
+      Word_se = Word_sd / sqrt(n()),
+      Nonword_mean = mean(Nonword, na.rm = TRUE),
+      Nonword_sd = sd(Nonword, na.rm = TRUE),
+      Nonword_se = Nonword_sd / sqrt(n()),
+      .groups = 'drop'
+    )
+
+  return(df_summary)
+}
+
+plot_data <- function(df_summary, selected_length) {
+  # Filter df_summary for the selected word_length
+  df_filtered <- df_summary %>%
+    filter(word_length == selected_length) %>%
+    mutate(Position = paste("Position", position + 1)) # Adjust position for labeling
+  
+  # Generate the plot
+  midpoint = max(df_filtered$Step + 1)/2
+  p <- ggplot(df_filtered, aes(x = Step, y = Word_mean, group = model_type, color = model_type)) +
+#    geom_ribbon(aes(ymin = Word_mean - Word_se, ymax = Word_mean + Word_se, fill = model_type), alpha = 0.2, show.legend = FALSE) +
+    # geom_ribbon(aes(ymin = Word_mean - Word_se, ymax = Word_mean + Word_se, fill = model_type), alpha = 0.2, show.legend = FALSE) +
+    geom_ribbon(aes(ymin = Word_mean - Word_se, ymax = Word_mean + Word_se, fill = model_type), alpha = 0.2, show.legend = FALSE, color = NA) +
+    geom_line(aes(y = Word_mean, linetype = model_type)) + # Ensure consistent aesthetic mapping for lines
+    geom_point(aes(y = Word_mean, shape = model_type), size = 5) + # Ensure consistent aesthetic mapping for points
+    facet_wrap(~Position, nrow = 1, scales = "free_x") + # One row with columns per position
+    labs(#title = paste("Data for word length", selected_length),
+         x = "Continuum step (from nonword- to lexically-consistent endpoint)",
+         y = "Predicted proportion of choices") +
+    geom_vline(xintercept=(midpoint) , linetype="dashed", color='magenta') + 
+    geom_hline(yintercept = .5, linetype = "dashed", color = 'magenta') + 
+    theme_bw(base_size = 20) +
+    theme(
+      legend.position = c(.25,.7),
+      legend.title = element_blank(), # Suppress legend title
+      legend.key.size = unit(1, "cm"), # Adjust legend key size
+      legend.box.background = element_blank(), 
+      strip.text.x = element_text(angle = 0, hjust = 0.5), # Make facet labels horizontal
+      panel.grid.major = element_line(color = "lightgrey", linetype = "dotted"), # Major gridlines
+      panel.grid.minor = element_blank(), # Hide minor gridlines for clarity
+      axis.text.x = element_text(angle = 0, hjust = 1) # Improve x axis label readability
+    ) +
+    scale_x_continuous(breaks = 1:max(df_filtered$Step)) #+ # Ensure x-axis ticks are as desired
+    #scale_color_manual(values = c("Feedback" = "blue", "No Feedback" = "red") # Customize line colors
+
+  print(p)
+}
 
 
-# Create the ggplot
-# model_Plot <- ggplot(data=melt_Ganong_Result.Subset, aes(x=Continuum_Step, y=value)) +
-#   geom_point(aes(shape=Word_Phoneme, color=Word_Phoneme), size = 7) +
-#   geom_line(aes(linetype=Word, color=Word_Phoneme), size = 2) +
-#   facet_grid(. ~ Model) +
-#   ylim(0, 1.0) +
-#   labs(linetype ="", shape = "", color = "") +
-#   labs(x = "Continuum step", y = "Activation", title="") +
-#   theme_bw() +
-#   theme(text = element_text(size=48),
-#         panel.background = element_blank(), 
-#         panel.grid.major = element_blank(),  #remove major-grid labels
-#         panel.grid.minor = element_blank(),  #remove minor-grid labels
-#         plot.background = element_blank(),
-#         legend.position = "bottom"
-#   )
-# 
-# # Save the plot
-# ggsave(paste(work_Dir, "Graphs/Ganong_Effect/Ganong_Effect.Model.png", sep=""), plot=model_Plot, width = 30, height = 20, dpi=300, units = "cm")
-
-# Define custom linetypes and colors
-custom_linetypes <- c("s | b^∫-b^s" = "solid", "∫ | b^∫-b^s" = "solid", "s | r^∫-r^s" = "solid", "∫ | r^∫-r^s" = "solid")
-custom_colors <- c("s | b^∫-b^s" = "darkred", "∫ | b^∫-b^s" = "darkblue", "s | r^∫-r^s" = "red", "∫ | r^∫-r^s" = "blue")
-custom_shapes <- c("s | b^∫-b^s" = 1, "∫ | b^∫-b^s" = 2, "s | r^∫-r^s" = 21, "∫ | r^∫-r^s" = 25)
-
-# jitter
-melt_Ganong_Result.Subset <- melt_Ganong_Result.Subset %>%
-  mutate(Continuum_Step_Jittered = Continuum_Step + runif(n(), -0.025, 0.025))
-
-# Create the ggplot
-model_Plot <- ggplot(data=melt_Ganong_Result.Subset, aes(x=Continuum_Step_Jittered, y=value)) +
-  geom_point(aes(shape=Word_Phoneme, color=Word_Phoneme, fill=Word_Phoneme), size = 7) +  # Added fill aesthetic
-  geom_line(aes(linetype=Word_Phoneme, color=Word_Phoneme), size = 1) +
-  facet_grid(. ~ Model) +
-  ylim(0, 1.0) +
-  labs(linetype ="", shape = "", color = "", fill="") +  # Added fill label
-  labs(x = "Continuum step", y = "Activation", title="") +
-  theme_bw() +
-  theme(text = element_text(size=48),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),  #remove major-grid labels
-        panel.grid.minor = element_blank(),  #remove minor-grid labels
-        plot.background = element_blank(),
-        legend.position = "bottom"
-  ) +
-  scale_linetype_manual(values = custom_linetypes) +
-  scale_color_manual(values = custom_colors) + 
-  scale_fill_manual(values = custom_colors) +  # Added fill scale
-  scale_shape_manual(values = custom_shapes)
+# Updated plot_data function to accept a prefix parameter
+plot_data_word_nonword <- function(df_summary, selected_length) {
+  # Filter df_summary for the selected prefix
+  df_filtered <- df_summary %>%
+    filter(word_length == selected_length) %>%
+    mutate(Position = paste("Position", position + 1)) # Adjust position for labeling
+  
+  # Generate the plot with geom_ribbon for standard error
+  p <- ggplot(df_filtered, aes(x = Step)) +
+    geom_ribbon(aes(ymin = Word_mean - Word_se, ymax = Word_mean + Word_se, fill = "Word SE"), alpha = 0.2, show.legend = FALSE) +
+    geom_ribbon(aes(ymin = Nonword_mean - Nonword_se, ymax = Nonword_mean + Nonword_se, fill = "Nonword SE"), alpha = 0.2, show.legend = FALSE) +
+    geom_line(aes(y = Word_mean, color = "Word")) +
+    geom_line(aes(y = Nonword_mean, color = "Nonword")) +
+    facet_grid(rows = vars(model_type), cols = vars(Position), scales = "free_x", space = "free_x") +
+    labs(x = "Continuum step (from nonword- to lexically-consistent endpoint)", y = "Predicted proportion of choices", color = "Phoneme Type", fill = "Type SE") +
+    geom_vline(xintercept=((1 + max(df_filtered$Step)/2)) , linetype="dashed", color='magenta') + 
+    geom_hline(yintercept=.5, linetype="dashed", color='magenta') + 
+    theme_bw(base_size=20) +
+    theme(legend.position = c(.05, .8), 
+          legend.title = element_blank(), # Suppress legend title
+          strip.text.x = element_text(angle = 0, hjust = 0.5), # Make facet labels horizontal
+          #strip.text.y = element_text(angle = 270, hjust = 0.5), # Adjust for horizontal y strip text
+          legend.key.size = unit(1, "cm"), # Adjust legend key size
+          legend.box.background = element_blank(), # Move legend to top left
+          legend.box.margin = margin(0, 0, 0, 0),
+          panel.grid.major = element_line(color = "lightgrey", linetype = "dotted"), # Make major gridlines light grey
+          panel.grid.minor = element_line(color = "lightgrey", linetype = "dotted") # Make minor gridlines light grey and dotted
+    ) +
+    scale_x_continuous(breaks = 1:7) # Ensure x-axis ticks are as desired
+  
+  #print(p)
+}
 
 
-# Save the plot
-ggsave(paste(work_Dir, "Graphs/Ganong_Effect/fig08_Ganong_Effect.Model.png", sep=""), plot=model_Plot, width = 40, height = 30, dpi=300, units = "cm")
+# Remember to process the files first to generate df_summary
+df_summary <- process_files(data_dir)
 
 
+df_summary$Step = df_summary$Step + 1
+
+#names(df_summary)
+
+# To plot for p3 items
+#plot_data(df_summary, "p3")
+p4plot <- plot_data(df_summary, "p4")
+
+ggsave("Graphs/Ganong_Effect/fig07_ganong.png", p4plot, width = 12, height=6)
+print("Ganong plot saved to Graphs/Ganong_Effect/fig07_ganong.png")
+# expsum <- plot_summs(resultsSD.Off.lt3D2LexCU, ci_level=0.5)
+# expcoef <- plot_coefs(resultsSD.Off.lt3D2LexCU, ci_level=0.95)
+#toc()
