@@ -14,12 +14,11 @@ Our first step is to make sure we have all the files. This repo is set up to hav
 
 #### Lexicon files (top level)
 `./Pronunciation_Data.txt`  
-`./Pronunciation_Data_with_bl^S.txt`
 
 #### Simulation files (in SIMULATIONS)
-`./SIMULATIONS/Torch_TISK_Class.py # core TISK functions`  
-`./SIMULATIONS/Model_Setup.py` <br>  
-`./SIMULATIONS/Basic_Data.py`  <br>
+`./SIMULATIONS/Torch_TISK_Class.py # core TISK functions`<br>
+`./SIMULATIONS/Model_Setup.py`<br>  
+`./SIMULATIONS/Basic_Data.py` <br>
 `./SIMULATIONS/Ganong_Effect.py`  <br>
 `./SIMULATIONS/Retroactive_Effect.py` <br>
 `./SIMULATIONS/Phoneme_Restoration.py`  <br>

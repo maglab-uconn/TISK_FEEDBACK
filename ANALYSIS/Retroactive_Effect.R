@@ -61,56 +61,103 @@ dir.create(file.path(paste(work_Dir, "Graphs", sep=""), "Retroactive_Effect"), s
 feedback_Retroactive_Effect_Result <- read_delim(paste(work_Dir, "Results/Retroactive_Effect/Feedback.Retroactive_Effect.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
 no_Feedback_Retroactive_Effect_Result <- read_delim(paste(work_Dir, "Results/Retroactive_Effect/No_Feedback.Retroactive_Effect.txt", sep=""), "\t", escape_double = FALSE, locale = locale(encoding = "UTF-8"), trim_ws = TRUE)
 
-feedback_Retroactive_Effect_Result <- feedback_Retroactive_Effect_Result[-2:-5]
-no_Feedback_Retroactive_Effect_Result <- no_Feedback_Retroactive_Effect_Result[-2:-5]
+# feedback_Retroactive_Effect_Result <- feedback_Retroactive_Effect_Result#[-2:-5]
+# no_Feedback_Retroactive_Effect_Result <- no_Feedback_Retroactive_Effect_Result#[-2:-5]
 
-# melt_Feedback_Retroactive_Effect <- melt(feedback_Retroactive_Effect_Result, id="Cycle")
-# melt_No_Feedback_Retroactive_Effect <- melt(no_Feedback_Retroactive_Effect_Result, id="Cycle")
-# Using pivot_longer instead of melt
-melt_Feedback_Retroactive_Effect <- feedback_Retroactive_Effect_Result %>%
-  pivot_longer(cols = -Cycle, names_to = "variable", values_to = "value")
 
-melt_No_Feedback_Retroactive_Effect <- no_Feedback_Retroactive_Effect_Result %>%
-  pivot_longer(cols = -Cycle, names_to = "variable", values_to = "value")
 
-no_Feedback_Graph <- ggplot(data=melt_No_Feedback_Retroactive_Effect, aes(x=Cycle, y=value, shape=variable, colour=variable)) +
-  geom_line(data=melt_No_Feedback_Retroactive_Effect, aes(linetype=variable)) +
-  geom_point(data=melt_No_Feedback_Retroactive_Effect[as.numeric(melt_No_Feedback_Retroactive_Effect$Cycle) %% 10 == 0,], aes(shape=variable), size = 3) + 
-  labs(linetype ="Pattern", shape = "Pattern", colour = "Pattern") +
-  labs(x = "Cycle", y = "Activation of /p/ or /b/", title=paste("No feedback")) +
-  scale_x_continuous(breaks = (seq(0, 99, 10))) +
-  ylim(0, 0.4) +
-  scale_linetype_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c("solid", "dashed", "solid", "dashed")) +
-  scale_shape_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c(2,17,5,18)) +
-  scale_colour_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c("red","blue","red","blue")) +
+# Add 'model' column to feedback_Retroactive_Effect_Result
+feedback_Retroactive_Effect_Result <- feedback_Retroactive_Effect_Result %>%
+  mutate(model = 'Feedback')
+
+# Add 'model' column to no_Feedback_Retroactive_Effect_Result
+no_Feedback_Retroactive_Effect_Result <- no_Feedback_Retroactive_Effect_Result %>%
+  mutate(model = 'No feedback')
+
+combined_Retroactive_Effect_Result <- bind_rows(feedback_Retroactive_Effect_Result, no_Feedback_Retroactive_Effect_Result)
+combined_Retroactive_Effect_Result <- combined_Retroactive_Effect_Result %>%
+  dplyr::rename(
+    `p:plug` = `/p/|pl^g`,
+    `b:plug` = `/b/|pl^g`,
+    `p:blush` = `/p/|bl^S`,
+    `b:blush` = `/b/|bl^S`,
+    `p:#lug` = `/p/|#l^g`,
+    `b:#lug` = `/b/|#l^g`,
+    `p:#lush` = `/p/|#l^S`,
+    `b:#lush` = `/b/|#l^S`,
+    `Model` = `model`
+  )
+
+# View the first few rows of the modified combined data frame
+head(combined_Retroactive_Effect_Result)
+long_Retroactive_Effect_Result <- combined_Retroactive_Effect_Result %>%
+  pivot_longer(
+    cols = starts_with("p:") | starts_with("b:"),
+    names_to = c("Phoneme", "Input"),
+    names_sep = ":",
+    values_to = "value"
+  ) %>%
+  mutate(Context = stringr::str_replace(Input, "^(.)", "_")) %>%
+  mutate(
+    Ambiguity = if_else(stringr::str_detect(Input, "^[pb]"), "Intact", "Ambiguous"),
+    Condition = paste0(Phoneme, ':', Ambiguity)
+  )
+
+# View the first few rows of the transformed data frame
+head(long_Retroactive_Effect_Result)
+
+
+###### HERE
+
+long_Retroactive_Effect_Result$Ambiguity <- factor(long_Retroactive_Effect_Result$Ambiguity, 
+                                                   levels = c("Intact", "Ambiguous"))
+
+# Assuming long_Retroactive_Effect_Result has been prepared as per your previous instructions
+# Define custom settings for the plot based on Condition and Ambiguity
+
+# Custom colors for Conditions - adjust as needed
+custom_colors <- c("p" = "purple", "b" = "black")
+
+# Assuming Ambiguity has two levels - Intact and Ambiguous for custom line types
+custom_linetypes <- c("Intact" = "solid", "Ambiguous" = "dashed")
+
+# If you're plotting points or need specific shapes, adjust this accordingly
+# Custom shapes, if applicable
+custom_shapes <- c("p" = 16, "b" = 17)  # Example shapes for phonemes
+
+# Adjusting plot code based on provided structure
+xplot <- ggplot(long_Retroactive_Effect_Result, aes(x = Cycle, y = value, color = Phoneme, group = Condition)) +
+  geom_line(aes(linetype = Ambiguity)) +  # Draw lines for each condition, styled by Ambiguity
+  geom_text(data = long_Retroactive_Effect_Result %>% filter(as.numeric(Cycle) %% 10 == 0), 
+            aes(label = ifelse(grepl("p", Condition), "p", "b")), 
+            size = 6, check_overlap = FALSE, 
+            position = position_jitter(width = 1.5, height = 0.0)) +
+  facet_grid(Model ~ Context) +  # Facets for Model and Context
+  scale_colour_manual(values = custom_colors) +
+  scale_linetype_manual(values = custom_linetypes) +
+  scale_shape_manual(values = custom_shapes) +  # If using geom_point
+  labs(x = "Cycle", y = "Activation", color = "Condition", linetype = "Ambiguity") +
   theme_bw() +
-  theme(text = element_text(size=25),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),  #remove major-grid labels
-        panel.grid.minor = element_blank(),  #remove minor-grid labels
-        plot.background = element_blank(),
-        legend.key.height=unit(2,"line"))
+  theme(
+    text = element_text(size = 30),
+    panel.background = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.background = element_blank(),
+    legend.position = c(0.3,0.8),
+    strip.text.x = element_text(face = "bold"),
+    strip.text.y = element_text(face = "bold"),
+    legend.title = element_blank(),
+    legend.key.width = unit(2, "cm")  # Adjust the width of the legend keys
+  ) +
+  guides(
+    color = guide_none(),  # Do not show color in legend
+    shape = guide_none(),  # Do not show shape in legend (if used)
+    linetype = guide_legend(override.aes = list(color = "black"), keyheight = unit(3, "lines"))
+  )
+# Note: Modify `custom_colors`, `custom_linetypes`, and `custom_shapes` based on your dataset specifics
 
+ggsave("Graphs/Retroactive_Effect/fig08_retroactive_effect.png", xplot, width = 12, height=12)
 
-feedback_Graph <- ggplot(data=melt_Feedback_Retroactive_Effect, aes(x=Cycle, y=value, shape=variable, colour=variable)) +
-  geom_line(data=melt_Feedback_Retroactive_Effect, aes(linetype=variable)) +
-  geom_point(data=melt_Feedback_Retroactive_Effect[as.numeric(melt_Feedback_Retroactive_Effect$Cycle) %% 10 == 0,], aes(shape=variable), size = 3) + 
-  labs(linetype ="Pattern", shape = "Pattern", colour = "Pattern") +
-  labs(x = "Cycle", y = "Activation of /p/ or /b/", title=paste("Feedback")) +
-  scale_x_continuous(breaks = (seq(0, 99, 10))) +
-  ylim(0, 0.4) +
-  scale_linetype_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c("solid", "dashed", "solid", "dashed")) +
-  scale_shape_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c(2,17,5,18)) +
-  scale_colour_manual(labels=c("/p/ | #l^g", "/b/ | #l^g", "/p/ | #l^S", "/b/ | #l^S"), values=c("red","blue","red","blue")) +
-  theme_bw() +
-  theme(text = element_text(size=25),
-        panel.background = element_blank(), 
-        panel.grid.major = element_blank(),  #remove major-grid labels
-        panel.grid.minor = element_blank(),  #remove minor-grid labels
-        plot.background = element_blank(),
-        legend.key.height=unit(2,"line"))
-
-png(paste(work_Dir, "Graphs/Retroactive_Effect/fig08_Retroactive_Effect.png", sep=""), width = 33, height = 15, res =300, units = "cm")
-grid_arrange_shared_legend(no_Feedback_Graph, feedback_Graph, ncol = 2, nrow = 1, position="right")
-dev.off()
+print("Saved figure to Graphs/Retroactive_Effect/fig08_retroactive_effect.png")
 
